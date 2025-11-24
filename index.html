@@ -11,6 +11,7 @@
         .panel { background-color: #2d3748; border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); }
         .btn { transition: all 0.2s; }
         .btn:active { transform: scale(0.95); }
+        
         /* Rulet Numarası Animasyonu */
         .number-display { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; margin: 0 auto; border: 4px solid white; }
         .num-red { background-color: #e53e3e; color: white; }
@@ -20,6 +21,7 @@
         /* Akordiyon Animasyonu */
         .rotate-180 { transform: rotate(180deg); }
         .transition-transform { transition: transform 0.3s ease; }
+        
         /* Scrollbar düzeni */
         .history-list::-webkit-scrollbar { width: 8px; }
         .history-list::-webkit-scrollbar-track { background: #2d3748; }
@@ -191,7 +193,6 @@
                             <input type="number" id="withdraw-amount" class="w-full bg-gray-700 rounded p-2 text-white" placeholder="Tutar">
                             <button onclick="setMaxWithdraw()" class="bg-red-600 text-white px-3 rounded font-bold text-xs">MAX</button>
                         </div>
-                        <!-- YENİ DÜZENLEME: Çek Butonu Kırmızı Kutu -->
                         <button onclick="withdrawMoney()" class="w-full btn bg-red-600 hover:bg-red-700 text-white py-2 rounded font-bold">ÇEK</button>
                         <p class="text-xs text-gray-500 mt-2 text-center">Aktif Ana Para: <span id="display-net-principal" class="text-blue-300">0</span> $</p>
                     </div>
@@ -231,7 +232,7 @@
         </div>
     </div>
 
-    <!-- FIREBASE SDK -->
+    <!-- FIREBASE SDK ve OYUN MANTIĞI -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -410,7 +411,6 @@
             let betAmt = parseInt(document.getElementById('bet-amount').value);
             let betType = document.getElementById('bet-type').value;
             
-            // Validasyon
             if (isNaN(betAmt) || betAmt <= 0) return showMessage("Geçersiz bahis.", "error");
             if (betAmt > userData.toplam) return showMessage("Yetersiz bakiye.", "error");
             
@@ -419,7 +419,6 @@
             
             if (userData.cevrimSarti > 0) { userData.cevrimSarti -= betAmt; if (userData.cevrimSarti < 0) userData.cevrimSarti = 0; }
             
-            // Kullanıcı Seçimini Al
             let userChoice, choiceText;
             if (betType === "1") { 
                 userChoice = parseInt(document.getElementById('input-number').value); 
@@ -433,10 +432,8 @@
                 choiceText = sel.options[sel.selectedIndex].text; 
             }
 
-            // Parayı Düş
             userData.toplam -= betAmt; userData.kazanc -= betAmt; updateUI();
             
-            // Animasyon Başlat
             let resultBox = document.getElementById('result-circle'); 
             resultBox.className = "number-display bg-gray-600 animate-pulse"; 
             resultBox.innerText = ""; 
@@ -451,11 +448,11 @@
 
                 let won = false, mult = 0;
 
-                // KAZANMA MANTIĞI KONTROLÜ
+                // --- KAZANMA MANTIĞI ---
                 if (betType === "1") { // Tek Sayı
                     if (rand === userChoice) { won = true; mult = 36; }
                 }
-                else if (betType === "2") { // 3'lü Gruplar (Dozen)
+                else if (betType === "2") { // 3'lü Gruplar
                     if (userChoice === "1" && rand >= 1 && rand <= 12) won = true;
                     else if (userChoice === "2" && rand >= 13 && rand <= 24) won = true;
                     else if (userChoice === "3" && rand >= 25 && rand <= 36) won = true;
@@ -554,7 +551,7 @@
         window.setMaxBet = () => { if(userData) document.getElementById('bet-amount').value=userData.toplam; };
         window.setMaxWithdraw = () => { if(userData) document.getElementById('withdraw-amount').value = userData.toplam; };
 
-        // --- DÜZELTİLEN BAHİS SEÇENEKLERİ GÜNCELLEME ---
+        // --- BAHİS SEÇENEKLERİ GÜNCELLEME (DÜZELTİLDİ) ---
         window.updateBetOptions = () => {
             const t = document.getElementById('bet-type').value; 
             const inN = document.getElementById('input-number'); 
@@ -571,13 +568,12 @@
             else { 
                 inS.classList.remove('hidden'); // Dropdown göster
                 
-                // BURASI DÜZELTİLDİ: (type yerine t değişkeni)
                 if (t === "2") { // 3'lü Gruplar
                     addOption(inS, "1", "1. Grup (1-12)"); 
                     addOption(inS, "2", "2. Grup (13-24)"); 
                     addOption(inS, "3", "3. Grup (25-36)"); 
                 }
-                else if (t === "3") { // 2'li Gruplar
+                else if (t === "3") { // 2'li Gruplar - BURADAKİ HATA DÜZELTİLDİ (type -> t)
                     addOption(inS, "1", "1-18 (Düşük)"); 
                     addOption(inS, "2", "19-36 (Yüksek)"); 
                 } 
@@ -600,10 +596,8 @@
         
         function getTime() { return new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'}); }
         
-        // Basitleştirilmiş Renk Kuralı (Sitenizdeki Kurallara Göre)
         function getNumberColor(n) { 
             if(n===0) return {css:'num-green', name:'YEŞİL', isRed:false}; 
-            // Çiftler Kırmızı, Tekler Siyah
             if(n%2===0) return {css:'num-red', name:'KIRMIZI', isRed:true}; 
             return {css:'num-black', name:'SİYAH', isRed:false}; 
         }
