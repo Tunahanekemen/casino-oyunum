@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Casino - Online</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #1a202c; color: #e2e8f0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .panel { background-color: #2d3748; border-radius: 0.5rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); }
+        .btn { transition: all 0.2s; }
+        .btn:active { transform: scale(0.95); }
+        /* Rulet Numarası Animasyonu */
+        .number-display { width: 80px; height: 80px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: bold; margin: 0 auto; border: 4px solid white; }
+        .num-red { background-color: #e53e3e; color: white; }
+        .num-black { background-color: #1a202c; border: 2px solid #4a5568; color: white; }
+        .num-green { background-color: #48bb78; color: white; }
+        
+        /* Akordiyon Animasyonu */
+        .rotate-180 { transform: rotate(180deg); }
+        .transition-transform { transition: transform 0.3s ease; }
+        /* Scrollbar düzeni */
+        .history-list::-webkit-scrollbar { width: 8px; }
+        .history-list::-webkit-scrollbar-track { background: #2d3748; }
+        .history-list::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; }
+        
+        /* Yükleme animasyonu */
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #ecc94b; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center py-10 relative">
+
+    <!-- Müzik Kontrol -->
+    <button onclick="toggleMusic()" class="absolute top-4 right-4 bg-gray-700 hover:bg-gray-600 text-white p-3 rounded-full shadow-lg transition duration-300 z-50" title="Müziği Aç/Kapa">
+        <i id="music-icon" class="fas fa-volume-mute text-xl w-6"></i>
+    </button>
+    <audio id="bg-music" loop>
+        <source src="muzik.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="container max-w-4xl px-4">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-yellow-500 mb-2"><i class="fas fa-dice"></i> Royal Python Casino</h1>
+            <p class="text-gray-400">Online Bulut Sürümü <i class="fas fa-cloud ml-1"></i></p>
+            <div id="connection-status" class="text-xs mt-2 text-gray-500 font-mono">Sunucu aranıyor...</div>
+        </div>
+
+        <!-- --- 1. GİRİŞ / KAYIT EKRANI (ESKİ TASARIM) --- -->
+        <div id="auth-screen" class="max-w-md mx-auto bg-gray-800 p-8 rounded-lg shadow-2xl border border-gray-700">
+            <h2 class="text-2xl font-bold mb-6 text-center text-white">Giriş Yap / Kayıt Ol</h2>
+            
+            <div class="mb-4">
+                <label class="block text-gray-400 mb-2">Kullanıcı Adı</label>
+                <input type="text" id="auth-username" class="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-gray-400 mb-2">Şifre</label>
+                <input type="password" id="auth-password" class="w-full bg-gray-700 text-white rounded p-3 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+            </div>
+            
+            <div class="flex gap-4" id="auth-buttons">
+                <button onclick="loginUser()" id="btn-login" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded transition" disabled>Giriş Yap</button>
+                <button onclick="registerUser()" id="btn-register" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded transition" disabled>Kayıt Ol</button>
+            </div>
+            
+            <div id="auth-loading" class="hidden mt-4"><div class="loader"></div><p class="text-center text-gray-400 mt-2">İşlem yapılıyor...</p></div>
+            <p id="auth-message" class="mt-4 text-center text-sm font-bold min-h-[1.5rem]"></p>
+        </div>
+
+        <!-- --- 2. OYUN ARAYÜZÜ (ESKİ TASARIM) --- -->
+        <div id="game-screen" class="hidden">
+            
+            <!-- Kullanıcı Bilgisi -->
+            <div class="flex justify-between items-center mb-4 bg-gray-800 p-3 rounded-lg border border-gray-700">
+                <span class="text-yellow-400 font-bold"><i class="fas fa-user mr-2"></i> <span id="current-user-display">Oyuncu</span></span>
+                <div class="text-xs text-green-400 flex items-center"><div class="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></div>Online</div>
+                <button onclick="logoutUser()" class="text-red-400 hover:text-red-300 text-sm font-bold">Çıkış Yap <i class="fas fa-sign-out-alt ml-1"></i></button>
+            </div>
+
+            <!-- Dashboard -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="panel text-center border-b-4 border-green-500">
+                    <p class="text-gray-400 text-sm">TOPLAM BAKİYE</p>
+                    <p class="text-3xl font-bold" id="display-balance">0 $</p>
+                    <p id="wagering-info" class="text-xs text-yellow-500 mt-1 hidden">Çevrim Şartı: <span id="wagering-amount">0</span>$</p>
+                </div>
+                <div class="panel text-center border-b-4 border-blue-500">
+                    <p class="text-gray-400 text-sm">TOPLAM YATIRILAN</p>
+                    <p class="text-2xl font-bold" id="display-deposited">0 $</p>
+                    <p class="text-xs text-gray-400 mt-1">Aktif Ana Para: <span id="display-net-principal" class="text-blue-300">0</span> $</p>
+                </div>
+                <div class="panel text-center border-b-4 border-red-500">
+                    <p class="text-gray-400 text-sm">TOPLAM ÇEKİLEN</p>
+                    <p class="text-2xl font-bold" id="display-withdrawn">0 $</p>
+                </div>
+            </div>
+
+            <!-- Sekmeler -->
+            <div class="flex justify-center mb-6 space-x-2">
+                <button onclick="showTab('game')" class="btn px-6 py-2 bg-purple-600 rounded-lg hover:bg-purple-700 font-bold focus:ring-2 focus:ring-purple-400"><i class="fas fa-gamepad mr-2"></i> Rulet</button>
+                <button onclick="showTab('wallet')" class="btn px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 font-bold focus:ring-2 focus:ring-gray-400"><i class="fas fa-wallet mr-2"></i> Cüzdan</button>
+                <button onclick="showTab('rules')" class="btn px-6 py-2 bg-gray-600 rounded-lg hover:bg-gray-700 font-bold focus:ring-2 focus:ring-gray-400"><i class="fas fa-book mr-2"></i> Kurallar</button>
+            </div>
+
+            <!-- OYUN ALANI -->
+            <div id="tab-game" class="panel mb-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Kontroller -->
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Bahis Türü</label>
+                            <select id="bet-type" class="w-full bg-gray-700 rounded p-2 text-white border border-gray-600" onchange="updateBetOptions()">
+                                <option value="1">Tek Rakam (36 Katı)</option>
+                                <option value="2">3'lü Gruplar (3 Katı)</option>
+                                <option value="3">2'li Gruplar (1-18 / 19-36) (2 Katı)</option>
+                                <option value="4">Renk (Kırmızı/Siyah/Yeşil)</option> 
+                                <option value="5">Tek / Çift (2 Katı)</option>
+                            </select>
+                        </div>
+
+                        <div id="bet-choice-container">
+                            <label class="block text-sm font-medium mb-1">Seçiminiz</label>
+                            <input type="number" id="input-number" min="0" max="36" class="w-full bg-gray-700 rounded p-2 text-white border border-gray-600" placeholder="0-36 arası sayı">
+                            <select id="input-select" class="w-full bg-gray-700 rounded p-2 text-white border border-gray-600 hidden"></select>
+                        </div>
+
+                        <!-- Hızlı Bahis Butonları -->
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Bahis Miktarı ($)</label>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="adjustBet(0.5)" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded shadow" title="Yarıya İndir">1/2x</button>
+                                <input type="number" id="bet-amount" class="flex-1 bg-gray-700 rounded p-2 text-white border border-gray-600 text-center" placeholder="Miktar">
+                                <button onclick="adjustBet(2)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded shadow" title="İkiye Katla">2x</button>
+                                <button onclick="setMaxBet()" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded shadow" title="Tüm Bakiyeyi Bas">MAX</button>
+                            </div>
+                        </div>
+
+                        <button onclick="playRoulette()" class="w-full btn bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-lg shadow-lg">
+                            ÇEVİR! <i class="fas fa-sync-alt ml-2"></i>
+                        </button>
+                        <div id="game-message" class="text-center text-sm font-bold min-h-[1.5rem]"></div>
+                    </div>
+
+                    <!-- Sonuç Ekranı -->
+                    <div class="flex flex-col items-center justify-center bg-gray-800 rounded-lg p-6">
+                        <p class="mb-4 text-gray-400">Son Gelen Sayı</p>
+                        <div id="result-circle" class="number-display bg-gray-600">?</div>
+                        <p id="result-details" class="mt-4 text-lg font-semibold text-gray-300">-</p>
+                    </div>
+                </div>
+
+                <!-- Oyun Geçmişi -->
+                <div class="mt-8 border-t border-gray-600 pt-4">
+                    <button onclick="toggleSection('history-game')" class="w-full flex justify-between items-center bg-gray-700 hover:bg-gray-600 p-3 rounded-lg transition">
+                        <span class="font-bold text-gray-200"><i class="fas fa-history mr-2"></i> Son 50 Oyun Geçmişi</span>
+                        <i id="icon-history-game" class="fas fa-chevron-down transition-transform"></i>
+                    </button>
+                    <div id="history-game" class="hidden mt-2 bg-gray-800 rounded-lg p-2 max-h-60 overflow-y-auto history-list">
+                        <p class="text-gray-500 text-center text-sm p-2">Veriler yükleniyor...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CÜZDAN ALANI -->
+            <div id="tab-wallet" class="panel mb-6 hidden">
+                <h2 class="text-2xl font-bold mb-4 border-b border-gray-600 pb-2">Cüzdan İşlemleri</h2>
+                
+                <!-- Günlük Limit Göstergesi -->
+                <div class="flex justify-between text-xs text-gray-400 mb-2 px-2">
+                    <span>Yatırma Limiti (Kalan): <span id="limit-deposit" class="text-green-400 font-bold">10.000.000.000</span>$</span>
+                    <span>Çekme Limiti (Kalan): <span id="limit-withdraw" class="text-red-400 font-bold">10.000.000.000</span>$</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-800 p-4 rounded">
+                        <h3 class="text-green-400 font-bold mb-2">Para Yatır</h3>
+                        <input type="number" id="deposit-amount" class="w-full bg-gray-700 rounded p-2 mb-2 text-white" placeholder="Tutar">
+                        <button onclick="depositMoney()" class="w-full btn bg-green-600 hover:bg-green-700 text-white py-2 rounded">Yatır</button>
+                    </div>
+                    <div class="bg-gray-800 p-4 rounded">
+                        <h3 class="text-red-400 font-bold mb-2">Para Çek</h3>
+                        <input type="number" id="withdraw-amount" class="w-full bg-gray-700 rounded p-2 mb-2 text-white" placeholder="Tutar">
+                        <button onclick="withdrawMoney()" class="w-full btn bg-red-600 hover:bg-red-700 text-white py-2 rounded">Çek</button>
+                    </div>
+                </div>
+
+                <div class="mt-6 p-4 bg-yellow-900 bg-opacity-30 border border-yellow-600 rounded flex justify-between items-center">
+                    <div>
+                        <h3 class="text-yellow-500 font-bold">Günlük Bonus</h3>
+                        <p class="text-sm text-gray-300">Günde bir kez 100$ alabilirsin.</p>
+                    </div>
+                    <button id="btn-bonus" onclick="claimBonus()" class="btn bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded">Bonus Al (100$)</button>
+                </div>
+
+                <!-- İşlem Geçmişi -->
+                <div class="mt-8 border-t border-gray-600 pt-4">
+                    <button onclick="toggleSection('history-wallet')" class="w-full flex justify-between items-center bg-gray-700 hover:bg-gray-600 p-3 rounded-lg transition">
+                        <span class="font-bold text-gray-200"><i class="fas fa-file-invoice-dollar mr-2"></i> İşlem Geçmişi</span>
+                        <i id="icon-history-wallet" class="fas fa-chevron-down transition-transform"></i>
+                    </button>
+                    <div id="history-wallet" class="hidden mt-2 bg-gray-800 rounded-lg p-2 max-h-60 overflow-y-auto history-list">
+                        <p class="text-gray-500 text-center text-sm p-2">Veriler yükleniyor...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KURALLAR -->
+            <div id="tab-rules" class="panel mb-6 hidden">
+                <h2 class="text-2xl font-bold mb-4 border-b border-gray-600 pb-2">Kurallar</h2>
+                <ul class="list-disc list-inside space-y-2 text-gray-300">
+                    <li><strong class="text-white">Limitler:</strong> Günlük maksimum <span class="text-yellow-400">10 Milyar $</span> yatırabilir ve çekebilirsiniz.</li>
+                    <li><strong class="text-white">Renkler:</strong> <span class="text-red-500">Çiftler Kırmızı</span>, <span class="text-gray-400">Tekler Siyah</span>, <span class="text-green-500">0 Yeşildir</span>.</li>
+                    <li><strong class="text-white">Kâr Çekimi:</strong> Kârınızı çekebilmek için bakiyeniz, yatırılan tutarın <span class="text-green-400">1.5 katına</span> ulaşmalıdır.</li>
+                    <li><strong class="text-white">Ana Para Çekimi:</strong> Yatırdığınız ana parayı her zaman çekebilirsiniz.</li>
+                    <li><strong class="text-white">Bonus Kuralı:</strong> Günlük bonusu çekebilmek için bonus miktarı kadar oyun oynamalısınız.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE SDK VE MANTIK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // --- SENİN FIREBASE AYARLARIN ---
+        const firebaseConfig = {
+          apiKey: "AIzaSyDv26DL6rgsCdR3R73gpnA4J2QGmA5UPVo",
+          authDomain: "my-casino-game-cd498.firebaseapp.com",
+          projectId: "my-casino-game-cd498",
+          storageBucket: "my-casino-game-cd498.firebasestorage.app",
+          messagingSenderId: "343345038720",
+          appId: "1:343345038720:web:b49be0a58d8c040b1eed65",
+          measurementId: "G-S43JGSKXE8"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const DAILY_LIMIT = 10000000000;
+        let userData = null;
+        let userDocRef = null;
+        let unsubscribe = null;
+
+        // --- AUTHENTICATION FONKSİYONLARI (KULLANICI ADI DESTEKLİ) ---
+        
+        // Kullanıcı adını alır, sahte bir e-postaya çevirir ve Firebase'e gönderir.
+        function getFakeEmail(username) {
+            return username.toLowerCase().replace(/\s/g, '') + "@yapay-casino.com";
+        }
+
+        window.registerUser = async () => {
+            const username = document.getElementById('auth-username').value.trim();
+            const p = document.getElementById('auth-password').value;
+            const msg = document.getElementById('auth-message');
+            msg.innerText = "İşleniyor...";
+            
+            if(!username || !p) return msg.innerText = "Kullanıcı adı ve şifre giriniz.";
+            
+            // Kullanıcı Adı -> E-posta Dönüşümü
+            const email = getFakeEmail(username);
+
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, email, p);
+                // Yeni kullanıcı veritabanı kaydı
+                await setDoc(doc(db, "users", cred.user.uid), {
+                    username: username, // Gerçek kullanıcı adını da saklayalım
+                    toplam: 0, kazanc: 0, cekilenToplam: 0, yatirilanToplam: 0, yatirilanNet: 0,
+                    gunlukHak: 1, cevrimSarti: 0, gameHistory: [], dailyDeposit: 0, dailyWithdraw: 0, lastTxDate: ""
+                });
+                msg.innerText = "Kayıt Başarılı! Giriş yapıldı.";
+                msg.className = "mt-4 text-center text-sm font-bold text-green-500";
+            } catch(err) { 
+                console.error(err);
+                let errorText = "Kayıt Hatası: " + err.code;
+                if(err.code === 'auth/email-already-in-use') errorText = "Bu kullanıcı adı zaten alınmış.";
+                if(err.code === 'auth/weak-password') errorText = "Şifre en az 6 karakter olmalı.";
+                msg.innerText = errorText;
+                msg.className = "mt-4 text-center text-sm font-bold text-red-500";
+            }
+        };
+
+        window.loginUser = async () => {
+            const username = document.getElementById('auth-username').value.trim();
+            const p = document.getElementById('auth-password').value;
+            const msg = document.getElementById('auth-message');
+            msg.innerText = "Giriş yapılıyor...";
+
+            const email = getFakeEmail(username);
+
+            try { 
+                await signInWithEmailAndPassword(auth, email, p); 
+            } catch(err) { 
+                console.error(err);
+                let errorText = "Hata: " + err.code;
+                if(err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') errorText = "Kullanıcı adı veya şifre hatalı.";
+                msg.innerText = errorText;
+                msg.className = "mt-4 text-center text-sm font-bold text-red-500";
+            }
+        };
+
+        window.logoutUser = () => signOut(auth);
+
+        // --- OTURUM TAKİBİ ---
+        onAuthStateChanged(auth, (user) => {
+            const status = document.getElementById('connection-status');
+            const btnLogin = document.getElementById('btn-login');
+            const btnRegister = document.getElementById('btn-register');
+
+            if (user) {
+                status.innerText = "Online (Aktif)"; 
+                status.className = "text-xs mt-2 text-green-500 font-mono font-bold";
+                
+                document.getElementById('auth-screen').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+                
+                // E-postadan kullanıcı adını ayıkla (görsel amaçlı)
+                let displayUser = user.email.split('@')[0];
+                document.getElementById('current-user-display').innerText = displayUser;
+                
+                userDocRef = doc(db, "users", user.uid);
+                if(unsubscribe) unsubscribe();
+                unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        userData = docSnap.data();
+                        // Veritabanında saklanan gerçek kullanıcı adını kullan (varsa)
+                        if(userData.username) document.getElementById('current-user-display').innerText = userData.username;
+                        checkDailyReset();
+                        updateUI();
+                        renderGameHistory();
+                    }
+                });
+            } else {
+                status.innerText = "Sunucuya Bağlı"; 
+                status.className = "text-xs mt-2 text-gray-500 font-mono";
+                
+                document.getElementById('auth-screen').classList.remove('hidden');
+                document.getElementById('game-screen').classList.add('hidden');
+                userData = null;
+
+                // Butonları Aktif Et
+                btnLogin.disabled = false;
+                btnLogin.classList.remove('cursor-not-allowed'); 
+                btnRegister.disabled = false;
+                btnRegister.classList.remove('cursor-not-allowed'); 
+            }
+        });
+
+        // --- VERİTABANI YAZMA ---
+        const saveToDB = async () => {
+            if(userDocRef && userData) await updateDoc(userDocRef, userData);
+        };
+
+        // --- OYUN MANTIĞI ---
+        function checkDailyReset() {
+            if(!userData) return;
+            const today = new Date().toLocaleDateString();
+            if (userData.lastTxDate !== today) {
+                userData.dailyDeposit = 0; userData.dailyWithdraw = 0; userData.gunlukHak = 1; userData.lastTxDate = today;
+                saveToDB();
+            }
+            if(userData.dailyDeposit===undefined) userData.dailyDeposit=0;
+            if(userData.dailyWithdraw===undefined) userData.dailyWithdraw=0;
+        }
+
+        window.updateUI = () => {
+            if(!userData) return;
+            document.getElementById('display-balance').innerText = formatNumber(userData.toplam) + " $";
+            document.getElementById('display-deposited').innerText = formatNumber(userData.yatirilanToplam) + " $";
+            document.getElementById('display-net-principal').innerText = formatNumber(userData.yatirilanNet);
+            document.getElementById('limit-deposit').innerText = formatNumCompact(DAILY_LIMIT - userData.dailyDeposit);
+            document.getElementById('limit-withdraw').innerText = formatNumCompact(DAILY_LIMIT - userData.dailyWithdraw);
+            const wInfo = document.getElementById('wagering-info');
+            if (userData.cevrimSarti > 0) { wInfo.classList.remove('hidden'); document.getElementById('wagering-amount').innerText = formatNumber(userData.cevrimSarti); } 
+            else { wInfo.classList.add('hidden'); }
+            
+            const btnBonus = document.getElementById('btn-bonus');
+            if (userData.gunlukHak <= 0) { btnBonus.innerText = "Yarın Gel"; btnBonus.disabled = true; btnBonus.classList.add('opacity-50'); }
+            else { btnBonus.innerText = "Bonus Al (100$)"; btnBonus.disabled = false; btnBonus.classList.remove('opacity-50'); }
+        };
+
+        window.depositMoney = () => {
+            let amt = parseInt(document.getElementById('deposit-amount').value);
+            if (isNaN(amt) || amt <= 0) return alert("Geçersiz.");
+            if (userData.dailyDeposit + amt > DAILY_LIMIT) return alert("Limit aşıldı.");
+            userData.toplam += amt; userData.yatirilanToplam += amt; userData.yatirilanNet += amt; userData.kazanc = 0; userData.dailyDeposit += amt;
+            document.getElementById('deposit-amount').value = "";
+            saveToDB(); alert("Yatırıldı.");
+        };
+
+        window.withdrawMoney = () => {
+            let amt = parseInt(document.getElementById('withdraw-amount').value);
+            if (isNaN(amt) || amt <= 0) return alert("Geçersiz.");
+            if (amt > userData.toplam) return alert("Yetersiz bakiye.");
+            if (amt > (userData.toplam - userData.cevrimSarti)) return alert("Bonus çevrimi.");
+            if (userData.dailyWithdraw + amt > DAILY_LIMIT) return alert("Limit aşıldı.");
+            if (amt > userData.yatirilanNet && userData.kazanc < userData.yatirilanToplam * 0.5) return alert("Kâr çekim şartı: " + formatNumber(userData.yatirilanToplam * 1.5));
+            
+            userData.toplam -= amt; userData.cekilenToplam += amt; userData.dailyWithdraw += amt;
+            if (amt <= userData.yatirilanNet) userData.yatirilanNet -= amt; else userData.yatirilanNet = 0;
+            if (userData.kazanc >= (userData.yatirilanToplam * 0.5) && amt > 0 && userData.yatirilanNet === 0) { userData.yatirilanToplam = 0; userData.kazanc = 0; }
+            document.getElementById('withdraw-amount').value = "";
+            saveToDB(); alert("Çekildi.");
+        };
+
+        window.claimBonus = () => {
+            if (userData.gunlukHak > 0) {
+                userData.toplam += 100; userData.cevrimSarti += 100; userData.gunlukHak--;
+                saveToDB(); alert("Bonus eklendi.");
+            }
+        };
+
+        window.playRoulette = () => {
+            let betAmt = parseInt(document.getElementById('bet-amount').value);
+            let betType = document.getElementById('bet-type').value;
+            if (isNaN(betAmt) || betAmt <= 0) return showMessage("Geçersiz bahis.", "error");
+            if (betAmt > userData.toplam) return showMessage("Yetersiz bakiye.", "error");
+            if (userData.toplam > 0 && betAmt < (userData.toplam * 0.05)) return showMessage("Min: %5", "error");
+            
+            if (userData.cevrimSarti > 0) { userData.cevrimSarti -= betAmt; if (userData.cevrimSarti < 0) userData.cevrimSarti = 0; }
+            
+            let userChoice, choiceText;
+            if (betType === "1") { userChoice = parseInt(document.getElementById('input-number').value); choiceText="Sayi: "+userChoice; if(isNaN(userChoice)) return; }
+            else { 
+                const sel = document.getElementById('input-select'); 
+                userChoice = sel.value; choiceText = sel.options[sel.selectedIndex].text; 
+            }
+
+            userData.toplam -= betAmt; userData.kazanc -= betAmt; updateUI();
+            
+            let resultBox = document.getElementById('result-circle'); resultBox.className = "number-display bg-gray-600 animate-pulse"; resultBox.innerText = ""; showMessage("Dönüyor...", "normal");
+
+            setTimeout(() => {
+                let rand = Math.floor(Math.random() * 37);
+                let colorInfo = getNumberColor(rand);
+                resultBox.className = "number-display " + colorInfo.css; resultBox.innerText = rand; document.getElementById('result-details').innerText = colorInfo.name;
+
+                let won = false, mult = 0;
+                if (betType==="1" && rand===userChoice) { won=true; mult=36; }
+                else if (betType==="2") { if((userChoice==="1"&&rand<=12&&rand>=1)||(userChoice==="2"&&rand<=24&&rand>=13)||(userChoice==="3"&&rand<=36&&rand>=25)) { won=true; mult=3; } }
+                else if (betType==="3") { if((userChoice==="1"&&rand<=18&&rand>=1)||(userChoice==="2"&&rand<=36&&rand>=19)) { won=true; mult=2; } }
+                else if (betType==="4") { if(userChoice==="kirmizi"&&colorInfo.isRed) won=true; else if(userChoice==="siyah"&&rand!==0&&!colorInfo.isRed) won=true; else if(userChoice==="yesil"&&rand===0) won=true; mult=(userChoice==="yesil"?36:2); }
+                else if (betType==="5") { if(userChoice==="tek"&&rand%2===1) won=true; else if(userChoice==="cift"&&rand!==0&&rand%2===0) won=true; mult=2; }
+
+                if (won) {
+                    let winAmt = betAmt * mult; userData.toplam += winAmt; userData.kazanc += winAmt;
+                    showMessage("KAZANDIN: " + formatNumCompact(winAmt), "success");
+                    addToHistory(choiceText, winAmt, true, rand);
+                } else {
+                    showMessage("Kaybettin", "error");
+                    addToHistory(choiceText, betAmt, false, rand);
+                }
+                saveToDB();
+            }, 500);
+        };
+
+        function addToHistory(txt, amt, won, num) {
+            userData.gameHistory.unshift({time: getTime(), text: txt, amount: amt, won: won, number: num});
+            if(userData.gameHistory.length > 20) userData.gameHistory.pop();
+            renderGameHistory();
+        }
+
+        window.renderGameHistory = () => {
+            const c = document.getElementById('history-game');
+            if(!userData || !userData.gameHistory.length) { c.innerHTML="<p class='text-gray-500 text-center text-xs'>Boş</p>"; return; }
+            let h = "";
+            userData.gameHistory.forEach(l => {
+                let col = l.won ? "text-green-400" : "text-red-400";
+                let s = l.won ? "+" : "-";
+                h += `<div class="flex justify-between bg-gray-800 p-2 mb-1 rounded text-xs"><span class="${col}">${s}${formatNumCompact(l.amount)}</span><span>${l.text}</span></div>`;
+            });
+            c.innerHTML = h;
+        }
+
+        // JS UTILS
+        window.adjustBet = (m) => { const i=document.getElementById('bet-amount'); let v=parseInt(i.value)||0; if(v===0&&m>1) i.value=10; else i.value=Math.floor(v*m); };
+        window.setMaxBet = () => { if(userData) document.getElementById('bet-amount').value=userData.toplam; };
+        window.updateBetOptions = () => {
+            const t = document.getElementById('bet-type').value; 
+            const inN = document.getElementById('input-number'); 
+            const inS = document.getElementById('input-select'); 
+            inN.classList.add('hidden'); inS.classList.add('hidden'); inS.innerHTML = ""; 
+            if (t === "1") { inN.classList.remove('hidden'); } 
+            else { 
+                inS.classList.remove('hidden'); 
+                if (t === "2") { addOption(inS, "1", "1-12"); addOption(inS, "2", "13-24"); addOption(inS, "3", "25-36"); }
+                else if (type === "3") { addOption(inS, "1", "1-18"); addOption(inS, "2", "19-36"); } 
+                else if (t === "4") { addOption(inS, "kirmizi", "Kırmızı"); addOption(inS, "siyah", "Siyah"); addOption(inS, "yesil", "Yeşil"); } 
+                else if (t === "5") { addOption(inS, "tek", "Tek"); addOption(inS, "cift", "Çift"); } 
+            }
+        };
+        function addOption(s, v, t) { let o = document.createElement('option'); o.value = v; o.innerText = t; s.appendChild(o); }
+        window.showMessage = (m, t) => { const e=document.getElementById('game-message'); e.innerText=m; e.className=t==='error'?'text-red-500':'text-green-500'; };
+        window.showTab = (n) => { ['game','wallet','rules'].forEach(x=>document.getElementById('tab-'+x).classList.add('hidden')); document.getElementById('tab-'+n).classList.remove('hidden'); };
+        window.toggleSection = (id) => { document.getElementById(id).classList.toggle('hidden'); };
+        
+        function formatNumber(n) { return n.toLocaleString('tr-TR'); }
+        function formatNumCompact(n) { return Intl.NumberFormat('tr-TR', { notation: "compact", maximumFractionDigits: 1 }).format(n); }
+        function getTime() { return new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'}); }
+        function getNumberColor(n) { if(n===0) return {css:'num-green', name:'YEŞİL', isRed:false}; if(n%2===0) return {css:'num-red', name:'KIRMIZI', isRed:true}; return {css:'num-black', name:'SİYAH', isRed:false}; }
+
+        // Müzik Butonu (Düzeltilmiş ve İkon Değişimi Eklenmiş)
+        window.toggleMusic = () => { 
+            const music = document.getElementById('bg-music');
+            const icon = document.getElementById('music-icon');
+            music.volume = 0.3;
+            if (music.paused) {
+                music.play();
+                icon.classList.remove('fa-volume-mute');
+                icon.classList.add('fa-volume-up');
+            } else {
+                music.pause();
+                icon.classList.remove('fa-volume-up');
+                icon.classList.add('fa-volume-mute');
+            }
+        };
+
+        updateBetOptions();
+    </script>
+</body>
+</html>
