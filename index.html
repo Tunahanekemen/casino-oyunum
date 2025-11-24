@@ -237,7 +237,7 @@
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // --- FIREBASE AYARLARI BURAYA ---
+        // --- FIREBASE AYARLARI ---
         const firebaseConfig = {
           apiKey: "AIzaSyDv26DL6rgsCdR3R73gpnA4J2QGmA5UPVo",
           authDomain: "my-casino-game-cd498.firebaseapp.com",
@@ -257,7 +257,7 @@
         let userDocRef = null;
         let unsubscribe = null;
 
-        // --- HELPER: FORMATLAMA ---
+        // --- FORMATLAMA ---
         function formatNumber(n) {
             if (n >= 1000000000) return (n / 1000000000).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + ' B';
             if (n >= 1000000) return (n / 1000000).toLocaleString('tr-TR', { maximumFractionDigits: 2 }) + ' M';
@@ -328,7 +328,7 @@
                         checkDailyReset();
                         updateUI();
                         renderGameHistory();
-                        renderWalletHistory(); // İşlem geçmişini de tetikle
+                        renderWalletHistory();
                     }
                 });
             } else {
@@ -336,12 +336,7 @@
                 document.getElementById('auth-screen').classList.remove('hidden');
                 document.getElementById('game-screen').classList.add('hidden');
                 userData = null;
-
-                // Butonları Aktif Et
-                btnLogin.disabled = false;
-                btnLogin.classList.remove('cursor-not-allowed'); 
-                btnRegister.disabled = false;
-                btnRegister.classList.remove('cursor-not-allowed'); 
+                btnLogin.disabled = false; btnRegister.disabled = false;
             }
         });
 
@@ -366,6 +361,7 @@
             document.getElementById('display-net-principal').innerText = formatNumber(userData.yatirilanNet);
             document.getElementById('limit-deposit').innerText = formatNumCompact(DAILY_LIMIT - userData.dailyDeposit) + " $";
             document.getElementById('limit-withdraw').innerText = formatNumCompact(DAILY_LIMIT - userData.dailyWithdraw) + " $";
+            
             const wInfo = document.getElementById('wagering-info');
             if (userData.cevrimSarti > 0) { wInfo.classList.remove('hidden'); document.getElementById('wagering-amount').innerText = formatNumber(userData.cevrimSarti); } 
             else { wInfo.classList.add('hidden'); }
@@ -380,7 +376,7 @@
             if (isNaN(amt) || amt <= 0) return alert("Geçersiz.");
             if (userData.dailyDeposit + amt > DAILY_LIMIT) return alert("Limit aşıldı.");
             userData.toplam += amt; userData.yatirilanToplam += amt; userData.yatirilanNet += amt; userData.kazanc = 0; userData.dailyDeposit += amt;
-            addToWalletHistory('deposit', amt); // Geçmişe ekle
+            addToWalletHistory('deposit', amt);
             document.getElementById('deposit-amount').value = "";
             saveToDB(); alert("Yatırıldı.");
         };
@@ -396,7 +392,7 @@
             userData.toplam -= amt; userData.cekilenToplam += amt; userData.dailyWithdraw += amt;
             if (amt <= userData.yatirilanNet) userData.yatirilanNet -= amt; else userData.yatirilanNet = 0;
             if (userData.kazanc >= (userData.yatirilanToplam * 0.5) && amt > 0 && userData.yatirilanNet === 0) { userData.yatirilanToplam = 0; userData.kazanc = 0; }
-            addToWalletHistory('withdraw', amt); // Geçmişe ekle
+            addToWalletHistory('withdraw', amt);
             document.getElementById('withdraw-amount').value = "";
             saveToDB(); alert("Çekildi.");
         };
@@ -409,43 +405,83 @@
             }
         };
 
+        // --- RULET MANTIĞI ---
         window.playRoulette = () => {
             let betAmt = parseInt(document.getElementById('bet-amount').value);
             let betType = document.getElementById('bet-type').value;
+            
+            // Validasyon
             if (isNaN(betAmt) || betAmt <= 0) return showMessage("Geçersiz bahis.", "error");
             if (betAmt > userData.toplam) return showMessage("Yetersiz bakiye.", "error");
             
-            // -- AKILLI MİN BAHİS UYARISI (DÜZELTİLDİ: Net rakam gösteriyor) --
             const minBet = Math.ceil(userData.toplam * 0.05);
             if (userData.toplam > 0 && betAmt < minBet) return showMessage("Min bahis: " + formatNumber(minBet) + " $ (%5)", "error");
             
             if (userData.cevrimSarti > 0) { userData.cevrimSarti -= betAmt; if (userData.cevrimSarti < 0) userData.cevrimSarti = 0; }
             
+            // Kullanıcı Seçimini Al
             let userChoice, choiceText;
-            if (betType === "1") { userChoice = parseInt(document.getElementById('input-number').value); choiceText="Sayi: "+userChoice; if(isNaN(userChoice)) return; }
+            if (betType === "1") { 
+                userChoice = parseInt(document.getElementById('input-number').value); 
+                choiceText = "Sayi: " + userChoice; 
+                if(isNaN(userChoice) || userChoice < 0 || userChoice > 36) return showMessage("0-36 arası sayı girin", "error");
+            }
             else { 
                 const sel = document.getElementById('input-select'); 
-                userChoice = sel.value; choiceText = sel.options[sel.selectedIndex].text; 
+                if(sel.options.length === 0) return showMessage("Lütfen bir seçim yapın", "error");
+                userChoice = sel.value; 
+                choiceText = sel.options[sel.selectedIndex].text; 
             }
 
+            // Parayı Düş
             userData.toplam -= betAmt; userData.kazanc -= betAmt; updateUI();
             
-            let resultBox = document.getElementById('result-circle'); resultBox.className = "number-display bg-gray-600 animate-pulse"; resultBox.innerText = ""; showMessage("Dönüyor...", "normal");
+            // Animasyon Başlat
+            let resultBox = document.getElementById('result-circle'); 
+            resultBox.className = "number-display bg-gray-600 animate-pulse"; 
+            resultBox.innerText = ""; 
+            showMessage("Dönüyor...", "normal");
 
             setTimeout(() => {
                 let rand = Math.floor(Math.random() * 37);
                 let colorInfo = getNumberColor(rand);
-                resultBox.className = "number-display " + colorInfo.css; resultBox.innerText = rand; document.getElementById('result-details').innerText = colorInfo.name;
+                resultBox.className = "number-display " + colorInfo.css; 
+                resultBox.innerText = rand; 
+                document.getElementById('result-details').innerText = colorInfo.name;
 
                 let won = false, mult = 0;
-                if (betType==="1" && rand===userChoice) { won=true; mult=36; }
-                else if (betType==="2") { if((userChoice==="1"&&rand<=12&&rand>=1)||(userChoice==="2"&&rand<=24&&rand>=13)||(userChoice==="3"&&rand<=36&&rand>=25)) { won=true; mult=3; } }
-                else if (betType==="3") { if((userChoice==="1"&&rand<=18&&rand>=1)||(userChoice==="2"&&rand<=36&&rand>=19)) { won=true; mult=2; } }
-                else if (betType==="4") { if(userChoice==="kirmizi"&&colorInfo.isRed) won=true; else if(userChoice==="siyah"&&rand!==0&&!colorInfo.isRed) won=true; else if(userChoice==="yesil"&&rand===0) won=true; mult=(userChoice==="yesil"?36:2); }
-                else if (betType==="5") { if(userChoice==="tek"&&rand%2===1) won=true; else if(userChoice==="cift"&&rand!==0&&rand%2===0) won=true; mult=2; }
+
+                // KAZANMA MANTIĞI KONTROLÜ
+                if (betType === "1") { // Tek Sayı
+                    if (rand === userChoice) { won = true; mult = 36; }
+                }
+                else if (betType === "2") { // 3'lü Gruplar (Dozen)
+                    if (userChoice === "1" && rand >= 1 && rand <= 12) won = true;
+                    else if (userChoice === "2" && rand >= 13 && rand <= 24) won = true;
+                    else if (userChoice === "3" && rand >= 25 && rand <= 36) won = true;
+                    mult = 3;
+                }
+                else if (betType === "3") { // 2'li Gruplar (1-18 / 19-36)
+                    if (userChoice === "1" && rand >= 1 && rand <= 18) won = true;
+                    else if (userChoice === "2" && rand >= 19 && rand <= 36) won = true;
+                    mult = 2;
+                }
+                else if (betType === "4") { // Renk
+                    if (userChoice === "kirmizi" && colorInfo.isRed) won = true;
+                    else if (userChoice === "siyah" && !colorInfo.isRed && rand !== 0) won = true;
+                    else if (userChoice === "yesil" && rand === 0) won = true;
+                    mult = (userChoice === "yesil" ? 36 : 2);
+                }
+                else if (betType === "5") { // Tek / Çift
+                    if (userChoice === "tek" && rand !== 0 && rand % 2 !== 0) won = true;
+                    else if (userChoice === "cift" && rand !== 0 && rand % 2 === 0) won = true;
+                    mult = 2;
+                }
 
                 if (won) {
-                    let winAmt = betAmt * mult; userData.toplam += winAmt; userData.kazanc += winAmt;
+                    let winAmt = betAmt * mult; 
+                    userData.toplam += winAmt; 
+                    userData.kazanc += winAmt;
                     showMessage("KAZANDIN: " + formatNumCompact(winAmt), "success");
                     addToHistory(choiceText, winAmt, true, rand);
                 } else {
@@ -514,34 +550,63 @@
             c.innerHTML = h;
         }
 
-        // JS UTILS
         window.adjustBet = (m) => { const i=document.getElementById('bet-amount'); let v=parseInt(i.value)||0; if(v===0&&m>1) i.value=10; else i.value=Math.floor(v*m); };
         window.setMaxBet = () => { if(userData) document.getElementById('bet-amount').value=userData.toplam; };
-        
-        // -- PARA ÇEKME MAX BUTONU --
         window.setMaxWithdraw = () => { if(userData) document.getElementById('withdraw-amount').value = userData.toplam; };
 
+        // --- DÜZELTİLEN BAHİS SEÇENEKLERİ GÜNCELLEME ---
         window.updateBetOptions = () => {
             const t = document.getElementById('bet-type').value; 
             const inN = document.getElementById('input-number'); 
             const inS = document.getElementById('input-select'); 
-            inN.classList.add('hidden'); inS.classList.add('hidden'); inS.innerHTML = ""; 
-            if (t === "1") { inN.classList.remove('hidden'); } 
+            
+            // Hepsini gizle ve temizle
+            inN.classList.add('hidden'); 
+            inS.classList.add('hidden'); 
+            inS.innerHTML = ""; 
+
+            if (t === "1") { 
+                inN.classList.remove('hidden'); // Sayı girişi
+            } 
             else { 
-                inS.classList.remove('hidden'); 
-                if (t === "2") { addOption(inS, "1", "1-12"); addOption(inS, "2", "13-24"); addOption(inS, "3", "25-36"); }
-                else if (type === "3") { addOption(inS, "1", "1-18"); addOption(inS, "2", "19-36"); } 
-                else if (t === "4") { addOption(inS, "kirmizi", "Kırmızı"); addOption(inS, "siyah", "Siyah"); addOption(inS, "yesil", "Yeşil"); } 
-                else if (t === "5") { addOption(inS, "tek", "Tek"); addOption(inS, "cift", "Çift"); } 
+                inS.classList.remove('hidden'); // Dropdown göster
+                
+                // BURASI DÜZELTİLDİ: (type yerine t değişkeni)
+                if (t === "2") { // 3'lü Gruplar
+                    addOption(inS, "1", "1. Grup (1-12)"); 
+                    addOption(inS, "2", "2. Grup (13-24)"); 
+                    addOption(inS, "3", "3. Grup (25-36)"); 
+                }
+                else if (t === "3") { // 2'li Gruplar
+                    addOption(inS, "1", "1-18 (Düşük)"); 
+                    addOption(inS, "2", "19-36 (Yüksek)"); 
+                } 
+                else if (t === "4") { // Renk
+                    addOption(inS, "kirmizi", "Kırmızı"); 
+                    addOption(inS, "siyah", "Siyah"); 
+                    addOption(inS, "yesil", "Yeşil (0)"); 
+                } 
+                else if (t === "5") { // Tek / Çift
+                    addOption(inS, "tek", "Tek (Odd)"); 
+                    addOption(inS, "cift", "Çift (Even)"); 
+                } 
             }
         };
+
         function addOption(s, v, t) { let o = document.createElement('option'); o.value = v; o.innerText = t; s.appendChild(o); }
         window.showMessage = (m, t) => { const e=document.getElementById('game-message'); e.innerText=m; e.className=t==='error'?'text-red-500':'text-green-500'; };
         window.showTab = (n) => { ['game','wallet','rules'].forEach(x=>document.getElementById('tab-'+x).classList.add('hidden')); document.getElementById('tab-'+n).classList.remove('hidden'); };
         window.toggleSection = (id) => { document.getElementById(id).classList.toggle('hidden'); };
         
         function getTime() { return new Date().toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'}); }
-        function getNumberColor(n) { if(n===0) return {css:'num-green', name:'YEŞİL', isRed:false}; if(n%2===0) return {css:'num-red', name:'KIRMIZI', isRed:true}; return {css:'num-black', name:'SİYAH', isRed:false}; }
+        
+        // Basitleştirilmiş Renk Kuralı (Sitenizdeki Kurallara Göre)
+        function getNumberColor(n) { 
+            if(n===0) return {css:'num-green', name:'YEŞİL', isRed:false}; 
+            // Çiftler Kırmızı, Tekler Siyah
+            if(n%2===0) return {css:'num-red', name:'KIRMIZI', isRed:true}; 
+            return {css:'num-black', name:'SİYAH', isRed:false}; 
+        }
 
         window.toggleMusic = () => { 
             const music = document.getElementById('bg-music');
