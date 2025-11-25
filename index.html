@@ -138,7 +138,7 @@
                         <div>
                             <label class="block text-sm font-medium mb-1">Bahis Miktarı ($)</label>
                             <div class="flex items-center space-x-2">
-                                <button onclick="setMinBet()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded shadow" title="Minimum Bahis (Bakiyenin %5'i)">MIN</button>
+                                
                                 <button onclick="adjustBet(0.5)" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded shadow" title="Yarıya İndir">1/2x</button>
                                 <input type="number" id="bet-amount" class="flex-1 bg-gray-700 rounded p-2 text-white border border-gray-600 text-center" placeholder="Miktar">
                                 <button onclick="adjustBet(2)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded shadow" title="İkiye Katla">2x</button>
@@ -556,12 +556,7 @@
         window.adjustBet = (m) => { const i=document.getElementById('bet-amount'); let v=parseInt(i.value)||0; if(v===0&&m>1) i.value=10; else i.value=Math.floor(v*m); };
         window.setMaxBet = () => { if(userData) document.getElementById('bet-amount').value=userData.toplam; };
         
-        // --- YENİ EKLENEN FONKSİYONLAR ---
-        window.setMinBet = () => {
-            if(!userData) return;
-            const min = Math.ceil(userData.toplam * 0.05);
-            document.getElementById('bet-amount').value = min > 0 ? min : 10;
-        };
+      
 
         window.setLastDeposit = () => {
              if(!userData || !userData.walletHistory) return;
