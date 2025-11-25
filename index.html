@@ -138,6 +138,7 @@
                         <div>
                             <label class="block text-sm font-medium mb-1">Bahis Miktarı ($)</label>
                             <div class="flex items-center space-x-2">
+                                <button onclick="setMinBet()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded shadow" title="Minimum Bahis (Bakiyenin %5'i)">MIN</button>
                                 <button onclick="adjustBet(0.5)" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded shadow" title="Yarıya İndir">1/2x</button>
                                 <input type="number" id="bet-amount" class="flex-1 bg-gray-700 rounded p-2 text-white border border-gray-600 text-center" placeholder="Miktar">
                                 <button onclick="adjustBet(2)" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded shadow" title="İkiye Katla">2x</button>
@@ -184,7 +185,12 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="bg-gray-800 p-4 rounded">
                         <h3 class="text-green-400 font-bold mb-2">Para Yatır</h3>
-                        <input type="number" id="deposit-amount" class="w-full bg-gray-700 rounded p-2 mb-2 text-white" placeholder="Tutar">
+                        <div class="flex gap-2 mb-2">
+                            <input type="number" id="deposit-amount" class="w-full bg-gray-700 rounded p-2 text-white" placeholder="Tutar">
+                            <button onclick="setLastDeposit()" class="bg-blue-600 hover:bg-blue-700 text-white px-3 rounded font-bold" title="Son Yatırılan Tutarı Tekrarla">
+                                <i class="fas fa-redo"></i>
+                            </button>
+                        </div>
                         <button onclick="depositMoney()" class="w-full btn bg-green-600 hover:bg-green-700 text-white py-2 rounded mt-2 font-bold">YATIR</button>
                     </div>
                     <div class="bg-gray-800 p-4 rounded">
@@ -479,7 +485,7 @@
                     let winAmt = betAmt * mult; 
                     userData.toplam += winAmt; 
                     userData.kazanc += winAmt;
-                    showMessage("KAZANDIN: " + formatNumCompact(winAmt), "success");
+                    showMessage("KAZANDIN: " + formatNumCompact(winAmt) + "$", "success");
                     addToHistory(choiceText, winAmt, true, rand);
                 } else {
                     showMessage("Kaybettin", "error");
@@ -549,9 +555,27 @@
 
         window.adjustBet = (m) => { const i=document.getElementById('bet-amount'); let v=parseInt(i.value)||0; if(v===0&&m>1) i.value=10; else i.value=Math.floor(v*m); };
         window.setMaxBet = () => { if(userData) document.getElementById('bet-amount').value=userData.toplam; };
+        
+        // --- YENİ EKLENEN FONKSİYONLAR ---
+        window.setMinBet = () => {
+            if(!userData) return;
+            const min = Math.ceil(userData.toplam * 0.05);
+            document.getElementById('bet-amount').value = min > 0 ? min : 10;
+        };
+
+        window.setLastDeposit = () => {
+             if(!userData || !userData.walletHistory) return;
+             const lastDep = userData.walletHistory.find(x => x.type === 'deposit');
+             if(lastDep) {
+                 document.getElementById('deposit-amount').value = lastDep.amount;
+             } else {
+                 alert("Geçmişte yatırım bulunamadı.");
+             }
+        };
+
         window.setMaxWithdraw = () => { if(userData) document.getElementById('withdraw-amount').value = userData.toplam; };
 
-        // --- BAHİS SEÇENEKLERİ GÜNCELLEME (DÜZELTİLDİ) ---
+        // --- BAHİS SEÇENEKLERİ GÜNCELLEME ---
         window.updateBetOptions = () => {
             const t = document.getElementById('bet-type').value; 
             const inN = document.getElementById('input-number'); 
@@ -573,7 +597,7 @@
                     addOption(inS, "2", "2. Grup (13-24)"); 
                     addOption(inS, "3", "3. Grup (25-36)"); 
                 }
-                else if (t === "3") { // 2'li Gruplar - BURADAKİ HATA DÜZELTİLDİ (type -> t)
+                else if (t === "3") { // 2'li Gruplar
                     addOption(inS, "1", "1-18 (Düşük)"); 
                     addOption(inS, "2", "19-36 (Yüksek)"); 
                 } 
